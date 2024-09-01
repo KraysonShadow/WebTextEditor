@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Онлайн Блокнот</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .notepad {
+            width: 80%;
+            max-width: 600px;
+            height: 70vh;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            resize: none;
+            font-size: 16px;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="notepad">
+        <textarea id="editor" placeholder="Начните писать здесь..."></textarea>
+    </div>
+    <div class="buttons">
+        <button onclick="undoText()">Назад</button>
+        <button onclick="redoText()">Вперед</button>
+        <button onclick="clearText()">Очистить</button>
+        <button onclick="increaseFont()">Увеличить шрифт</button>
+        <button onclick="decreaseFont()">Уменьшить шрифт</button>
+       // <button onclick="saveToServer()">Сохранить на компьютере</button>
+        <button onclick="loadFromServer()">Загрузить на сервер</button>
+    </div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        let history = [];
+        let historyIndex = -1;
+
+        // Инициализация содержимого блокнота
+        editor.value = localStorage.getItem('notepadContent') || '';
+        saveHistory();
+
+        // Автоматическое сохранение текста в localStorage
+        editor.addEventListener('input', () => {
+            localStorage.setItem('notepadContent', editor.value);
+            saveHistory();
+        });
+
+        function saveHistory() {
+            // Удаляем всё впереди, если введен новый текст
+            history = history.slice(0, historyIndex + 1);
+            // Добавляем текущее состояние в историю
+            history.push(editor.value);
+            historyIndex++;
+        }
+
+        function undoText() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                editor.value = history[historyIndex];
+                localStorage.setItem('notepadContent', editor.value);
+            }
+        }
+
+        function redoText() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                editor.value = history[historyIndex];
+                localStorage.setItem('notepadContent', editor.value);
+            }
+        }
+
+        function clearText() {
+            editor.value = '';
+            localStorage.setItem('notepadContent', editor.value);
+            saveHistory();
+        }
+
+        function increaseFont() {
+            let currentSize = parseFloat(window.getComputedStyle(editor).fontSize);
+            editor.style.fontSize = (currentSize + 2) + 'px';
+        }
+
+        function decreaseFont() {
+            let currentSize = parseFloat(window.getComputedStyle(editor).fontSize);
+            if (currentSize > 6) { // Минимальный размер шрифта для предотвращения слишком малого размера
+                editor.style.fontSize = (currentSize - 2) + 'px';
+            }
+        }
+
+        function saveToServer() {
+            fetch('http://localhost:8080/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: editor.value })
+            })
+            .then(response => response.text())
+            .then(data => alert(data))
+            .catch(error => console.error('Ошибка:', error));
+        }
+
+        function loadFromServer() {
+            fetch('http://localhost:8080/load')
+            .then(response => response.json())
+            .then(data => {
+                editor.value = data.content;
+                localStorage.setItem('notepadContent', editor.value);
+                saveHistory();
+            })
+            .catch(error => console.error('Ошибка:', error));
+        }
+    </script>
+</body>
+</html>
